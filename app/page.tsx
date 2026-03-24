@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 
 type Product = {
   id: string;
@@ -9,45 +10,11 @@ type Product = {
   location: string;
   contact: string;
   category: string;
+  image?: string; // Base64 image string
 };
 
-const initialProducts: Product[] = [
-  {
-    id: "1",
-    name: "Milho",
-    price: 1500,
-    location: "Maputo",
-    contact: "841234567",
-    category: "Milho",
-  },
-  {
-    id: "2",
-    name: "Arroz",
-    price: 2000,
-    location: "Beira",
-    contact: "851234567",
-    category: "Arroz",
-  },
-  {
-    id: "3",
-    name: "Tomate",
-    price: 500,
-    location: "Nampula",
-    contact: "861234567",
-    category: "Vegetais",
-  },
-  {
-    id: "4",
-    name: "Manga",
-    price: 800,
-    location: "Xai-Xai",
-    contact: "871234567",
-    category: "Frutas",
-  },
-];
-
-export default function Home() {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+export default function AgroMarketMZ() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
 
@@ -57,7 +24,60 @@ export default function Home() {
     location: "",
     contact: "",
     category: "",
+    image: "" as string, // Base64 string
   });
+
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedProducts = localStorage.getItem("agromarket_products");
+    if (savedProducts) {
+      setProducts(JSON.parse(savedProducts));
+    } else {
+      // Default products if none saved
+      const defaultProducts: Product[] = [
+        {
+          id: "1",
+          name: "Corn",
+          price: 1500,
+          location: "Maputo",
+          contact: "841234567",
+          category: "Cereals",
+          image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449",
+        },
+        {
+          id: "2",
+          name: "Rice",
+          price: 2000,
+          location: "Beira",
+          contact: "851234567",
+          category: "Cereals",
+          image: "https://images.unsplash.com/photo-1586201375761-83865001e31c",
+        },
+        {
+          id: "3",
+          name: "Carrots",
+          price: 500,
+          location: "Nampula",
+          contact: "861234567",
+          category: "Vegetables",
+          image: "https://images.unsplash.com/photo-1598170845058-32b9d6a5da37",
+        },
+      ];
+      setProducts(defaultProducts);
+      localStorage.setItem(
+        "agromarket_products",
+        JSON.stringify(defaultProducts),
+      );
+    }
+  }, []);
+
+  // Save to localStorage whenever products change
+  useEffect(() => {
+    localStorage.setItem("agromarket_products", JSON.stringify(products));
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -66,21 +86,37 @@ export default function Home() {
         ? product.name.toLowerCase().includes(search.toLowerCase()) ||
           product.location.toLowerCase().includes(search.toLowerCase())
         : true;
-
       return matchesCategory && matchesSearch;
     });
   }, [products, filter, search]);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // Handle image upload (file or drag & drop)
+  const handleImageUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      setForm((prev) => ({ ...prev, image: base64 }));
+      setImagePreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (
-      !form.name.trim() ||
-      !form.price.trim() ||
-      !form.location.trim() ||
-      !form.contact.trim() ||
-      !form.category.trim()
+      !form.name ||
+      !form.price ||
+      !form.location ||
+      !form.contact ||
+      !form.category
     ) {
+      alert("Please fill in all required fields");
       return;
     }
 
@@ -90,231 +126,335 @@ export default function Home() {
       price: Number(form.price),
       location: form.location.trim(),
       contact: form.contact.trim(),
-      category: form.category.trim(),
+      category: form.category,
+      image: form.image || undefined,
     };
 
     setProducts((prev) => [newProduct, ...prev]);
 
+    // Reset form
     setForm({
       name: "",
       price: "",
       location: "",
       contact: "",
       category: "",
+      image: "",
     });
-  }
+    setImagePreview(null);
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => setIsDragging(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleImageUpload(file);
+  };
 
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-900">
-      <section className="border-b bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="max-w-2xl">
-              <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-green-700">
-                Plataforma Agrícola
-              </p>
-              <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-                AgroMarket MZ
-              </h1>
-              <p className="mt-4 text-base text-gray-600 md:text-lg">
-                Uma solução simples para conectar produtores e compradores
-                locais em Moçambique, permitindo divulgar produtos, preços,
-                localização e contacto num único espaço digital.
-              </p>
+    <main className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur-md shadow-sm">
+        <div className="mx-auto max-w-6xl px-6 py-5">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-600 text-3xl">
+                🌾
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tighter text-gray-900">
+                  AgroMarket <span className="text-green-600">MZ</span>
+                </h1>
+              </div>
             </div>
 
-            <div className="rounded-2xl bg-green-600 px-6 py-5 text-white shadow-lg">
-              <p className="text-sm opacity-90">Produtos registados</p>
-              <p className="text-3xl font-bold">{products.length}</p>
+            {/* Center Tagline (hidden on small screens) */}
+            <p className="hidden text-sm font-medium text-gray-500 md:block">
+              Fresh • Local • Direct from Farmers
+            </p>
+
+            {/* Stats */}
+            <div className="flex items-center gap-4 rounded-2xl bg-green-50 px-6 py-3 text-green-700">
+              <span className="text-2xl">🌽</span>
+              <div>
+                <p className="text-xs font-medium">Products Available</p>
+                <p className="text-2xl font-semibold tracking-tight">
+                  {products.length}
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </section>
+      </header>
 
-      <section className="mx-auto grid max-w-6xl gap-8 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-            <div className="mb-5">
-              <h2 className="text-2xl font-semibold">Produtos disponíveis</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Consulte as listagens por nome, localização ou categoria.
-              </p>
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="grid gap-10 lg:grid-cols-12">
+          {/* Products Listing */}
+          <div className="lg:col-span-8">
+            <div className="mb-8 flex items-center justify-between">
+              <h2 className="text-3xl font-semibold text-gray-900">
+                Available Products
+              </h2>
+              <div className="text-sm text-gray-500">
+                {filteredProducts.length} product
+                {filteredProducts.length !== 1 ? "s" : ""} found
+              </div>
             </div>
 
-            <div className="mb-6 grid gap-3 md:grid-cols-2">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row">
               <input
                 type="text"
-                placeholder="Pesquisar por produto ou localização"
+                placeholder="Search by product name or location..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-green-600"
+                className="flex-1 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-lg outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
               />
 
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-green-600"
+                className="rounded-2xl border border-gray-200 bg-white px-5 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200"
               >
-                <option value="">Todas as categorias</option>
-                <option value="Milho">Milho</option>
-                <option value="Arroz">Arroz</option>
-                <option value="Vegetais">Vegetais</option>
-                <option value="Frutas">Frutas</option>
-                <option value="Outros">Outros</option>
+                <option value="">All Categories</option>
+                <option value="Cereals">Cereals</option>
+                <option value="Vegetables">Vegetables</option>
+                <option value="Fruits">Fruits</option>
+                <option value="Others">Others</option>
               </select>
             </div>
 
             {filteredProducts.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-                Nenhum produto encontrado.
+              <div className="rounded-3xl border border-dashed border-gray-300 py-20 text-center">
+                <p className="text-xl text-gray-500">No products found.</p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-6 md:grid-cols-2">
                 {filteredProducts.map((product) => (
-                  <article
+                  <div
                     key={product.id}
-                    className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+                    className="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-semibold">
+                    <div className="relative h-56 w-full overflow-hidden bg-gray-100">
+                      {product.image ? (
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          fill
+                          className="object-cover transition-transform group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-green-100 to-emerald-100">
+                          <span className="text-6xl opacity-30">🌾</span>
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
+                      <div className="absolute bottom-4 left-4">
+                        <span className="inline-block rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-green-700 backdrop-blur">
+                          {product.category}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-6">
+                      <div className="flex items-start justify-between">
+                        <h3 className="text-2xl font-semibold text-gray-900">
                           {product.name}
                         </h3>
-                        <p className="mt-1 inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                          {product.category}
-                        </p>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Price</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {product.price.toLocaleString()} MZN
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500">Preço</p>
-                        <p className="text-lg font-bold text-green-700">
-                          {product.price} MZN
+                      <div className="mt-6 space-y-3 text-sm text-gray-600">
+                        <p className="flex items-center gap-3">
+                          📍{" "}
+                          <span className="font-medium text-gray-900">
+                            Location:
+                          </span>{" "}
+                          {product.location}
+                        </p>
+                        <p className="flex items-center gap-3">
+                          📞{" "}
+                          <span className="font-medium text-gray-900">
+                            Contact:
+                          </span>{" "}
+                          {product.contact}
                         </p>
                       </div>
                     </div>
-
-                    <div className="mt-4 space-y-2 text-sm text-gray-600">
-                      <p>
-                        <span className="font-medium text-gray-900">
-                          Localização:
-                        </span>{" "}
-                        {product.location}
-                      </p>
-                      <p>
-                        <span className="font-medium text-gray-900">
-                          Contacto:
-                        </span>{" "}
-                        {product.contact}
-                      </p>
-                    </div>
-                  </article>
+                  </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
 
-        <div>
-          <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-            <div className="mb-5">
-              <h2 className="text-2xl font-semibold">Adicionar produto</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Registe um novo produto agrícola na plataforma.
-              </p>
-            </div>
+          {/* Add Product Form */}
+          <div className="lg:col-span-4">
+            <div className="sticky top-8 rounded-3xl bg-white p-8 shadow-lg ring-1 ring-gray-100">
+              <h2 className="text-3xl font-semibold">List Your Product</h2>
+              <p className="mt-2 text-gray-600">Add a new product with photo</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Nome do Produto
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-600"
-                  placeholder="Ex.: Batata, Cebola, Feijão"
-                />
-              </div>
+              <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+                {/* Image Upload Area */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Product Photo (optional)
+                  </label>
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() =>
+                      document.getElementById("file-input")?.click()
+                    }
+                    className={`flex h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all ${
+                      isDragging
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-300 hover:border-green-400"
+                    }`}
+                  >
+                    {imagePreview ? (
+                      <div className="relative h-full w-full">
+                        <Image
+                          src={imagePreview}
+                          alt="Preview"
+                          fill
+                          className="rounded-2xl object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <div className="mx-auto mb-3 text-4xl">📸</div>
+                        <p className="text-sm text-gray-600">
+                          Drag & drop an image or{" "}
+                          <span className="text-green-600 underline">
+                            click to upload
+                          </span>
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          PNG, JPG up to 5MB
+                        </p>
+                      </div>
+                    )}
+                    <input
+                      id="file-input"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file);
+                      }}
+                    />
+                  </div>
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Preço (MZN)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.price}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, price: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-600"
-                  placeholder="Ex.: 1200"
-                />
-              </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Product Name
+                  </label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="e.g. Fresh Cassava"
+                    className="w-full rounded-2xl border border-gray-200 px-5 py-3 focus:border-green-500 focus:ring-green-200"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Localização
-                </label>
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, location: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-600"
-                  placeholder="Ex.: Maputo, Beira, Nampula"
-                />
-              </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Price (MZN)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.price}
+                    onChange={(e) =>
+                      setForm({ ...form, price: e.target.value })
+                    }
+                    placeholder="1200"
+                    className="w-full rounded-2xl border border-gray-200 px-5 py-3 focus:border-green-500 focus:ring-green-200"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Contacto
-                </label>
-                <input
-                  type="text"
-                  value={form.contact}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, contact: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-600"
-                  placeholder="Ex.: 84xxxxxxx"
-                />
-              </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={form.location}
+                    onChange={(e) =>
+                      setForm({ ...form, location: e.target.value })
+                    }
+                    placeholder="e.g. Maputo, Beira"
+                    className="w-full rounded-2xl border border-gray-200 px-5 py-3 focus:border-green-500 focus:ring-green-200"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Categoria
-                </label>
-                <select
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, category: e.target.value }))
-                  }
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-green-600"
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Contact Number
+                  </label>
+                  <input
+                    type="text"
+                    value={form.contact}
+                    onChange={(e) =>
+                      setForm({ ...form, contact: e.target.value })
+                    }
+                    placeholder="84 123 4567"
+                    className="w-full rounded-2xl border border-gray-200 px-5 py-3 focus:border-green-500 focus:ring-green-200"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    Category
+                  </label>
+                  <select
+                    value={form.category}
+                    onChange={(e) =>
+                      setForm({ ...form, category: e.target.value })
+                    }
+                    className="w-full rounded-2xl border border-gray-200 px-5 py-3 focus:border-green-500 focus:ring-green-200"
+                    required
+                  >
+                    <option value="">Select category</option>
+                    <option value="Cereals">Cereals</option>
+                    <option value="Vegetables">Vegetables</option>
+                    <option value="Fruits">Fruits</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl bg-green-600 py-4 text-lg font-semibold text-white transition hover:bg-green-700 active:bg-green-800"
                 >
-                  <option value="">Selecionar categoria</option>
-                  <option value="Milho">Milho</option>
-                  <option value="Arroz">Arroz</option>
-                  <option value="Vegetais">Vegetais</option>
-                  <option value="Frutas">Frutas</option>
-                  <option value="Outros">Outros</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-green-600 px-4 py-3 font-semibold text-white transition hover:bg-green-700"
-              >
-                Adicionar Produto
-              </button>
-            </form>
+                  ✅ List Product
+                </button>
+              </form>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
     </main>
   );
 }
