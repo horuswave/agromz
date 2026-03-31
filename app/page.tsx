@@ -2596,7 +2596,7 @@ export default function AgroMarketMZ() {
                 {new Date().getFullYear()}
               </div>
             </div>
-            <div className="ag-footer-links">
+            {/* <div className="ag-footer-links">
               <a href="#" className="ag-footer-link">
                 Sobre Nós
               </a>
@@ -2609,7 +2609,7 @@ export default function AgroMarketMZ() {
               <a href="#" className="ag-footer-link">
                 Privacidade
               </a>
-            </div>
+            </div> */}
           </div>
         </footer>
       </div>
